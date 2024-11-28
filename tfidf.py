@@ -6,8 +6,14 @@ import sys
 import re
 import json
 from ollama import generate
+from nltk.corpus import stopwords
 
 LLAMA32 = "llama3.2"
+
+stop = stopwords.words('english')
+
+additional_terms = ['got', 'really', 'pretty', 'bit', 'didnt', 'get', 'also', 'like', 'went', 'go', 'im']
+stop.extend(additional_terms)
 
 def llm(prompt, log=False, user_log=False):
     output = ""
@@ -25,10 +31,10 @@ def llm(prompt, log=False, user_log=False):
 
 def tokenize(text):
     space_split = [x.lower() for x in text.split()]
-    #print(space_split)
 
+    space_split = [re.sub(r"[.,’\-\?&;#!:\(\)''\"]", '', x) for x in space_split]
+    space_split = [x for x in space_split if x not in stop ]
 
-    #exit(-1)
     return space_split
 
 
@@ -43,7 +49,7 @@ corpus_size = 0
 chunk_size_bytes = 1024
 
 journal_dir = 'sample_journals'
-if sys.argv[1]:
+if len(sys.argv) > 1:
     journal_dir = sys.argv[1]
 
 files_and_dirs = sorted(
@@ -93,6 +99,12 @@ log_chunk_count = math.log(chunk_count)
 for k,v in index.items():
     v[INVERSE_DOCUMENT_FREQUENCY] = log_chunk_count - math.log(len(v[TERM_FREQUENCY]))
 
+total_term_frequencies = collections.Counter()
+for token, data in index.items():
+    total_term_frequencies[token] = sum(data[TERM_FREQUENCY].values())
+
+# Find the most commonly used word
+print(total_term_frequencies.most_common()[:10])
 
 after_preprocessing = time.time()
 preprocessing_time = after_preprocessing - start
@@ -138,7 +150,6 @@ while True:
         print(score, chunk_id)
         #print(score, chunk_store[chunk_id])
 
-
     chunk_context = '\n\n'.join([chunk_store[i] for i,s in sorted_combined_scores[:7:-1]])
 
     prompt = f"""
@@ -153,7 +164,7 @@ while True:
 
     out = llm(prompt, True, False)
     obj = json.loads(out.strip())
-    print(obj["response]"])
+    print(obj["response"])
 
     for part in generate(LLAMA32, prompt, stream=True):
         print(part['response'], end='', flush=True)
