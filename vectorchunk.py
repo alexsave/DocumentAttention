@@ -21,8 +21,6 @@ EMBED_MODEL = 'nomic-embed-text'
 
 EMBEDDINGS_FILE = "embeddings.pkl"
 
-#TODO modify this to be a dict and adjust code accordingly, and don't save chunk_store
-
 document_vectors = {}
 # starting to think it might not be a good idea to store chunks, as we basically duplicate everything
 # but then again, the vectors take up WAY more space
