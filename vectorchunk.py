@@ -1,3 +1,4 @@
+from ollama import embeddings
 import collections
 import math
 import json
@@ -11,16 +12,22 @@ TERM_FREQUENCY = "TERM_FREQUENCY"
 preprocessing_timer = TimerLogger("Preprocessing")
 preprocessing_timer.start()
 
+
+x = [0,1,2,3,4,5,6]
+print(x[:2:-1])
+
 corpus_size = 0
 
+EMBED_MODEL = 'nomic-embed-text'
 
-index = {}
-chunk_store = []
+document_vectors = []
+chunk_store = {}
 
 loaded_files = loadfiles()
 
-def vectorize(text):
-    return 1/0
+def embed(text):
+    embed_response = embeddings(model=EMBED_MODEL, prompt=text)
+    return embed_response["embedding"]
 
 for info in loaded_files:
     date = info["date"]
@@ -33,67 +40,50 @@ for info in loaded_files:
     for i, chunk in enumerate(chunks):
         id = f"{date}#{i}"
 
-        vector = vectorize(chunk)
+        vector = embed(chunk)
 
-        chunk_store.append({"vector": vector, "chunk": chunk, "id": id})
-
-
-chunk_count = len(chunk_store)
-log_chunk_count = math.log(chunk_count)
-
-for k,v in index.items():
-    v[INVERSE_DOCUMENT_FREQUENCY] = log_chunk_count - math.log(len(v[TERM_FREQUENCY]))
-
-total_term_frequencies = collections.Counter()
-for token, data in index.items():
-    total_term_frequencies[token] = sum(data[TERM_FREQUENCY].values())
-
-# Find the most commonly used word
-print(total_term_frequencies.most_common()[:10])
+        document_vectors.append({"vector": vector, "id": id})
+        chunk_store[id] = date + "\n" + chunk
 
 preprocessing_timer.stop_and_log(corpus_size)
+
+def cos_similarity(vector_a, vector_b):
+    # if you use the same model, this shouldn't be a problem
+    assert len(vector_a) == len(vector_a)
+
+    similarity = 0
+
+    sum_ab = 0
+    sum_a2 = 0
+    sum_b2 = 0
+    # Inefficient? I don't fucking care
+    for i, a in enumerate(vector_a):
+        b = vector_b[i]
+        sum_ab += a*b
+        sum_a2 += a*a
+        sum_b2 += b*b
+    
+    return sum_ab / (math.sqrt(sum_a2) * math.sqrt(sum_b2))
 
 while True:
     query = input(">")
     query_timer = TimerLogger("Query")
     query_timer.start()
 
-    tokenized_query = tokenize(query)
-
-    print(tokenized_query)
+    embedded_query = embed(query)
 
     combined_scores = collections.Counter()
 
-    for token in tokenized_query:
-        if token not in index:
-            continue
-
-        index_entry = index[token]
-        #document_frequency = index_entry[DOCUMENT_FREQUENCY]
-        inverse_document_frequency = index_entry[INVERSE_DOCUMENT_FREQUENCY]
-        term_frequency = index_entry[TERM_FREQUENCY]
-
-        scores = []
-
-        # Calculate score for each chunk_id and chunk_store it in the list
-        for chunk_id in term_frequency.keys():
-            score = term_frequency[chunk_id] * inverse_document_frequency
-
-            combined_scores[chunk_id] += score
-
-            scores.append((score, chunk_id))
-        
-        # Sort the scores in descending order
-        #sorted_scores = sorted(scores, key=lambda x: x[0], reverse=True)
-        
-        # Print the top 7 scores and chunk_ids
+    for document_vector in document_vectors:
+        score = cos_similarity(embedded_query, document_vector["vector"])
+        combined_scores[document_vector["id"]] = score
 
     sorted_combined_scores = combined_scores.most_common()
     for chunk_id, score in sorted_combined_scores[:7]:
-        print(score, chunk_id)
+        print(score, chunk_id, chunk_store[chunk_id][:100].replace('\n', ''))
         #print(score, chunk_store[chunk_id])
 
-    chunk_context = '\n\n'.join([chunk_store[i] for i,s in sorted_combined_scores[:7:-1]])
+    chunk_context = '\n\n'.join([chunk_store[i] for i,s in sorted_combined_scores[:2][::-1]])
 
     prompt = f"""
     Context:
@@ -106,7 +96,8 @@ while True:
     """
 
     out = llm(prompt, True, False)
-    obj = json.loads(out.strip())
-    print(obj["response"])
+    # JSON isn't working perfectly. Rather than retrying, which could take fuckign forever, let's make the prompt better
+    #obj = json.loads(out.strip())
+    #print(obj["response"])
 
     query_timer.stop_and_log(corpus_size)

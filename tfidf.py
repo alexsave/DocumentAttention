@@ -93,7 +93,7 @@ while True:
         print(score, chunk_id)
         #print(score, chunk_store[chunk_id])
 
-    chunk_context = '\n\n'.join([chunk_store[i] for i,s in sorted_combined_scores[:7:-1]])
+    chunk_context = '\n\n'.join([chunk_store[i] for i,s in sorted_combined_scores[:2][::-1]])
 
     prompt = f"""
     Context:

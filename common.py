@@ -5,7 +5,7 @@ import re
 import sys
 from nltk.corpus import stopwords
 
-LLAMA32 = "llama3.2"
+LLM_MODEL = "llama3.2"
 
 chunk_size_bytes = 1024
 
@@ -26,17 +26,20 @@ def chunkenize(content):
 
 def llm(prompt, log=False, user_log=False):
     output = ""
+    stats = {}
     if user_log:
         print(f"USER>{prompt}")
     if log:
-        print(f"{LLAMA32}>", end='')
-    for part in generate(LLAMA32, prompt, stream=True):
+        print(f"{LLM_MODEL}>", end='')
+    for part in generate(LLM_MODEL, prompt, stream=True):
+        if 'prompt_eval_duration' in part:
+            stats = part
         output += part['response']
         if log:
             print(part['response'], end='', flush=True)
     if log:
         print()
-    return output
+    return output, stats
 
 def tokenize(text):
     space_split = [x.lower() for x in text.split()]
@@ -54,7 +57,7 @@ def loadfiles():
         os.listdir(journal_dir),
         key=lambda x: os.path.getmtime(os.path.join(journal_dir, x))
     )
-    pattern = re.compile("[12].*")
+    pattern = re.compile("2021.*")
     files_and_dirs = [ x for x in files_and_dirs if re.match(pattern, x)]
 
     result = []
