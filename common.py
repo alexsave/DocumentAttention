@@ -57,7 +57,7 @@ def loadfiles():
         os.listdir(journal_dir),
         key=lambda x: os.path.getmtime(os.path.join(journal_dir, x))
     )
-    pattern = re.compile("2022.*")
+    pattern = re.compile("[12].*")
     files_and_dirs = [ x for x in files_and_dirs if re.match(pattern, x)]
 
     result = []
