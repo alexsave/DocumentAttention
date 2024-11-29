@@ -12,10 +12,6 @@ TERM_FREQUENCY = "TERM_FREQUENCY"
 preprocessing_timer = TimerLogger("Preprocessing")
 preprocessing_timer.start()
 
-
-x = [0,1,2,3,4,5,6]
-print(x[:2:-1])
-
 corpus_size = 0
 
 EMBED_MODEL = 'nomic-embed-text'
@@ -83,7 +79,7 @@ while True:
         print(score, chunk_id, chunk_store[chunk_id][:100].replace('\n', ''))
         #print(score, chunk_store[chunk_id])
 
-    chunk_context = '\n\n'.join([chunk_store[i] for i,s in sorted_combined_scores[:2][::-1]])
+    chunk_context = '\n\n'.join([chunk_store[i] for i,s in sorted_combined_scores[:7][::-1]])
 
     prompt = f"""
     Context:
@@ -92,10 +88,10 @@ while True:
     Prompt:
     {query}
 
-    Respond to the prompt using the information in the context. Do not explain anything, just reply in JSON format with the response and a step-by-step explanation. For example: {{"response": "Robs birthday is December 5th", "explanation": "The text mentions Robs birthday on December 5th"}}.
+    Respond to the prompt using the information in the context. Do not explain anything, just reply in JSON format with the response and a step-by-step explanation. Just use a single JSON object, for example: {{"response": "Robs birthday is December 5th", "explanation": "The text mentions Robs birthday on December 5th"}}.
     """
 
-    out = llm(prompt, True, False)
+    out = llm(prompt, True, True)
     # JSON isn't working perfectly. Rather than retrying, which could take fuckign forever, let's make the prompt better
     #obj = json.loads(out.strip())
     #print(obj["response"])
