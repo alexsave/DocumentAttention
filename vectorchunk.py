@@ -1,12 +1,12 @@
 import collections
 import math
-import json
+import pickle
 import os
 import hashlib
 import tempfile
 
 from ollama import embeddings
-from common import TimerLogger, chunkenize, llm, loadfiles, tokenize, chunk_size_bytes
+from common import TimerLogger, chunkenize, llm, loadfiles, chunk_size_bytes
 
 DOCUMENT_FREQUENCY = "DOCUMENT_FREQUENCY"
 INVERSE_DOCUMENT_FREQUENCY = "INVERSE_DOCUMENT_FREQUENCY"
@@ -19,39 +19,41 @@ corpus_size = 0
 
 EMBED_MODEL = 'nomic-embed-text'
 
-EMBEDDINGS_FILE = "embeddings.json"
+EMBEDDINGS_FILE = "embeddings.pkl"
 
+#TODO modify this to be a dict and adjust code accordingly, and don't save chunk_store
 document_vectors = []
+# starting to think it might not be a good idea to store chunks, as we basically duplicate everything
+# but then again, the vectors take up WAY more space
 chunk_store = {}
 
 loaded_files = loadfiles()
 
 # Compute a hash to verify the state of the input files
-# carefully remove loaded_files and swap json files
-hash_input = json.dumps([chunk_size_bytes, EMBED_MODEL], sort_keys=True).encode()
+hash_input = pickle.dumps([chunk_size_bytes, EMBED_MODEL])
 hash_value = hashlib.sha256(hash_input).hexdigest()
 
 save_file = f"{hash_value[:7]}-{EMBEDDINGS_FILE}"
-#save_file = EMBEDDINGS_FILE
 
+# Function to save progress using pickle
 def save_progress():
-    with tempfile.NamedTemporaryFile('w', delete=False) as temp_file:
-        json.dump({"hash": hash_value, "document_vectors": document_vectors, "chunk_store": chunk_store}, temp_file)
+    with tempfile.NamedTemporaryFile('wb', delete=False) as temp_file:
+        pickle.dump({"hash": hash_value, "document_vectors": document_vectors, "chunk_store": chunk_store}, temp_file)
         temp_file_path = temp_file.name
     os.replace(temp_file_path, save_file)
 
 # Load embeddings from file if they exist and match the hash
 if os.path.exists(save_file):
-    with open(save_file, 'r') as f:
+    with open(save_file, 'rb') as f:
         try:
-            saved_data = json.load(f)
+            saved_data = pickle.load(f)
             if saved_data.get("hash") == hash_value:
                 document_vectors = saved_data["document_vectors"]
                 chunk_store = saved_data["chunk_store"]
                 print("Loaded existing embeddings from file.")
             else:
                 print("Embeddings file found but hash mismatch. Starting fresh.")
-        except json.JSONDecodeError:
+        except pickle.PickleError:
             print("Error decoding embeddings file. Starting fresh.")
 else:
     print("No existing embeddings file found. Starting fresh.")
