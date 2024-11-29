@@ -1,12 +1,10 @@
 import collections
-import math
 import pickle
 import os
 import hashlib
 import tempfile
 
-from ollama import embeddings
-from common import TimerLogger, chunkenize, llm, loadfiles, chunk_size_bytes
+from common import TimerLogger, chunkenize, final_prompt, llm, loadfiles, chunk_size_bytes
 
 DOCUMENT_FREQUENCY = "DOCUMENT_FREQUENCY"
 INVERSE_DOCUMENT_FREQUENCY = "INVERSE_DOCUMENT_FREQUENCY"
@@ -56,10 +54,6 @@ if os.path.exists(save_file):
 else:
     print("No existing embeddings file found. Starting fresh.")
 
-def embed(text):
-    embed_response = embeddings(model=EMBED_MODEL, prompt=text)
-    return embed_response["embedding"]
-
 # Embed chunks and save to file after each document is processed
 chunks_processed = 0
 for info in loaded_files:
@@ -95,23 +89,6 @@ save_progress()
 
 preprocessing_timer.stop_and_log(corpus_size)
 
-def cos_similarity(vector_a, vector_b):
-    # if you use the same model, this shouldn't be a problem
-    assert len(vector_a) == len(vector_b)
-
-    similarity = 0
-
-    sum_ab = 0
-    sum_a2 = 0
-    sum_b2 = 0
-    # Inefficient? I don't fucking care
-    for i, a in enumerate(vector_a):
-        b = vector_b[i]
-        sum_ab += a*b
-        sum_a2 += a*a
-        sum_b2 += b*b
-    
-    return sum_ab / (math.sqrt(sum_a2) * math.sqrt(sum_b2))
 
 while True:
     query = input(">")
@@ -133,19 +110,9 @@ while True:
 
     chunk_context = '\n\n'.join([chunk_store[i] for i,s in sorted_combined_scores[:7][::-1]])
 
-    prompt = f"""
-    Context:
-    {chunk_context}
+    prompt = final_prompt(chunk_context, query)
 
-    Prompt:
-    {query}
-
-    Respond to the prompt using the information in the context. Just reply in JSON format with a step-by-step explanation followed by a detailed and concise final response. Use just a single JSON object, e.g. {{"explanation": "1. [REASONING] 2. [REASONING] 3. [REASONING] ", "response": "[FINAL RESPONSE]"}}.
-    """
-    #Respond to the prompt using the information in the context. Just reply in JSON format with a step-by-step explanation followed by a detailed and concise final response. Use just a single JSON object, e.g. {{"explanation": "1. The text mentions Robs birthday. 2. The text has the date 12/5. 3. ... ", "response": "Robs birthday is December 5th"}}.
-    #Respond to the prompt using the information in the context. Do not explain anything, just reply in JSON format with the response and a step-by-step explanation. Just use a single JSON object, for example: {{"explanation": "1. The text mentions Robs birthday. 2. The text has the date 12/5. 3. ... ", "response": "Robs birthday is December 5th"}}.
-
-    out = llm(prompt, True, True)
+    out = llm(prompt, True, True, format='json')
     # JSON isn't working perfectly. Rather than retrying, which could take fuckign forever, let's make the prompt better
     #obj = json.loads(out.strip())
     #print(obj["response"])

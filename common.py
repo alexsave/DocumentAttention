@@ -1,11 +1,16 @@
+import pickle
+import tempfile
 from ollama import generate
 import time
 import os
 import re
+import math
 import sys
 from nltk.corpus import stopwords
 
+from ollama import embeddings
 LLM_MODEL = "llama3.2"
+EMBED_MODEL = 'nomic-embed-text'
 
 chunk_size_bytes = 1024
 
@@ -13,6 +18,22 @@ stop = stopwords.words('english')
 
 additional_terms = ['got', 'really', 'pretty', 'bit', 'didnt', 'get', 'also', 'like', 'went', 'go', 'im']
 stop.extend(additional_terms)
+
+def final_prompt(context, query):
+    return f"""
+    Context:
+    === start context ===
+    {context}
+    === end context ===
+
+    Prompt:
+    {query}
+
+    Respond to the prompt using the information in the context. Just reply in JSON format with a step-by-step explanation followed by a detailed and concise final response. Use just a single JSON object, e.g. {{"explanation": "1. [REASONING] 2. [REASONING] 3. [REASONING] ", "response": "[FINAL RESPONSE]"}}.
+    """
+    #Respond to the prompt using the information in the context. Just reply in JSON format with a step-by-step explanation followed by a detailed and concise final response. Use just a single JSON object, e.g. {{"explanation": "1. The text mentions Robs birthday. 2. The text has the date 12/5. 3. ... ", "response": "Robs birthday is December 5th"}}.
+    #Respond to the prompt using the information in the context. Do not explain anything, just reply in JSON format with the response and a step-by-step explanation. Just use a single JSON object, for example: {{"explanation": "1. The text mentions Robs birthday. 2. The text has the date 12/5. 3. ... ", "response": "Robs birthday is December 5th"}}.
+
 
 def chunkenize(content):
     chunks = []
@@ -24,21 +45,25 @@ def chunkenize(content):
     return chunks
 
 
-def llm(prompt, log=False, user_log=False):
+def llm(prompt, log=False, user_log=False, format=''):
     output = ""
     stats = {}
     if user_log:
         print(f"USER>{prompt}")
     if log:
         print(f"{LLM_MODEL}>", end='')
-    for part in generate(LLM_MODEL, prompt, stream=True):
-        if 'prompt_eval_duration' in part:
-            stats = part
-        output += part['response']
-        if log:
-            print(part['response'], end='', flush=True)
-    if log:
+        for part in generate(LLM_MODEL, prompt, stream=True, format=format):
+            if 'prompt_eval_duration' in part:
+                stats = part
+            output += part['response']
+            if log:
+                print(part['response'], end='', flush=True)
         print()
+
+    else:
+        stats = generate(LLM_MODEL, prompt, format=format)
+        output = stats['response']
+
     return output, stats
 
 def tokenize(text):
@@ -49,6 +74,26 @@ def tokenize(text):
 
     return space_split
 
+def embed(text):
+    embed_response = embeddings(model=EMBED_MODEL, prompt=text)
+    return embed_response["embedding"]
+
+def cos_similarity(vector_a, vector_b):
+    # if you use the same model, this shouldn't be a problem
+    assert len(vector_a) == len(vector_b)
+
+    sum_ab = 0
+    sum_a2 = 0
+    sum_b2 = 0
+    # Inefficient? I don't fucking care
+    for i, a in enumerate(vector_a):
+        b = vector_b[i]
+        sum_ab += a*b
+        sum_a2 += a*a
+        sum_b2 += b*b
+    
+    return sum_ab / (math.sqrt(sum_a2) * math.sqrt(sum_b2))
+
 def loadfiles():
     journal_dir = 'sample_journals'
     if len(sys.argv) > 1:
@@ -57,7 +102,7 @@ def loadfiles():
         os.listdir(journal_dir),
         key=lambda x: os.path.getmtime(os.path.join(journal_dir, x))
     )
-    pattern = re.compile("[12].*")
+    pattern = re.compile("2021-06-26.*")
     files_and_dirs = [ x for x in files_and_dirs if re.match(pattern, x)]
 
     result = []
@@ -69,7 +114,13 @@ def loadfiles():
     
     return result
 
-
+# Function to save progress using pickle
+#data is a dict of whatever
+def save_progress(save_file, data):
+    with tempfile.NamedTemporaryFile('wb', delete=False) as temp_file:
+        pickle.dump(data, temp_file)
+        temp_file_path = temp_file.name
+    os.replace(temp_file_path, save_file)
 
 class TimerLogger:
     def __init__(self, label):
@@ -84,5 +135,5 @@ class TimerLogger:
             raise ValueError("Timer was not started.")
         end_time = time.time()
         elapsed_time = end_time - self.start_time
-        print(f"{self.label} stats: {elapsed_time * 1000:.2f} milliseconds, {corpus_size} bytes, {elapsed_time / corpus_size:.6f} seconds/byte, {(elapsed_time * 1000 / corpus_size) * 1024 * 1024:.2f} milliseconds/MB")
+        print(f"{self.label} stats: {elapsed_time * 1000:.2f} milliseconds, {corpus_size} bytes, {elapsed_time / corpus_size:.6f} seconds/byte, {(elapsed_time * 1000 / corpus_size) * 1024 * 1024:.2f} milliseconds/MB, {(elapsed_time / corpus_size) * 1024*1024:.4f} seconds/MB")
 

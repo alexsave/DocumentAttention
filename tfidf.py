@@ -105,7 +105,7 @@ while True:
     Respond to the prompt using the information in the context. Do not explain anything, just reply in JSON format with the response and a step-by-step explanation. For example: {{"response": "Robs birthday is December 5th", "explanation": "The text mentions Robs birthday on December 5th"}}.
     """
 
-    out = llm(prompt, True, False)
+    out = llm(prompt, True, False, format='json')
     obj = json.loads(out.strip())
     print(obj["response"])
 
