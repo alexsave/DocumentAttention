@@ -2,9 +2,8 @@ import collections
 import math
 import json
 
-from common import TimerLogger, llm, loadfiles, tokenize
+from common import TimerLogger, chunkenize, llm, loadfiles, tokenize
 
-DOCUMENT_FREQUENCY = "DOCUMENT_FREQUENCY"
 INVERSE_DOCUMENT_FREQUENCY = "INVERSE_DOCUMENT_FREQUENCY"
 TERM_FREQUENCY = "TERM_FREQUENCY"
 
@@ -13,28 +12,18 @@ preprocessing_timer.start()
 
 corpus_size = 0
 
-chunk_size_bytes = 1024
-
 index = {}
 chunk_store = {}
 
 loaded_files = loadfiles()
 
-for info in loadfiles:
+for info in loaded_files:
     date = info["date"]
     #print(date)
     content = info["content"]
     corpus_size += len(content)
 
-
-    chunks = []
-    #for start_index in range(0, )
-    start_index = 0
-    while start_index < len(content)-chunk_size_bytes/2:
-        end_index = start_index + chunk_size_bytes
-        chunks.append(content[start_index:end_index])
-        start_index += int(chunk_size_bytes/2)
-
+    chunks = chunkenize(content)
 
     for i, chunk in enumerate(chunks):
         id = f"{date}#{i}"
@@ -46,8 +35,7 @@ for info in loadfiles:
         document_len = len(tokens)
         for token in tokens:
             if token not in index:
-                index[token] = {TERM_FREQUENCY: collections.Counter()}#, "document_frequency": 0}
-            #if id not in index[token]["matches"]:
+                index[token] = {TERM_FREQUENCY: collections.Counter()}
             index[token][TERM_FREQUENCY][id] += 1.0/document_len
 
 chunk_count = len(chunk_store)
@@ -81,7 +69,7 @@ while True:
             continue
 
         index_entry = index[token]
-        #document_frequency = index_entry[DOCUMENT_FREQUENCY]
+        
         inverse_document_frequency = index_entry[INVERSE_DOCUMENT_FREQUENCY]
         term_frequency = index_entry[TERM_FREQUENCY]
 

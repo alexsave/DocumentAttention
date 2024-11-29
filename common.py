@@ -7,10 +7,21 @@ from nltk.corpus import stopwords
 
 LLAMA32 = "llama3.2"
 
+chunk_size_bytes = 1024
+
 stop = stopwords.words('english')
 
 additional_terms = ['got', 'really', 'pretty', 'bit', 'didnt', 'get', 'also', 'like', 'went', 'go', 'im']
 stop.extend(additional_terms)
+
+def chunkenize(content):
+    chunks = []
+    start_index = 0
+    while start_index < len(content)-chunk_size_bytes/2:
+        end_index = start_index + chunk_size_bytes
+        chunks.append(content[start_index:end_index])
+        start_index += int(chunk_size_bytes/2)
+    return chunks
 
 
 def llm(prompt, log=False, user_log=False):
