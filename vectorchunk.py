@@ -27,12 +27,22 @@ chunk_store = {}
 loaded_files = loadfiles()
 
 # Compute a hash to verify the state of the input files
-hash_input = json.dumps([loaded_files, chunk_size_bytes, EMBED_MODEL], sort_keys=True).encode()
+# carefully remove loaded_files and swap json files
+hash_input = json.dumps([chunk_size_bytes, EMBED_MODEL], sort_keys=True).encode()
 hash_value = hashlib.sha256(hash_input).hexdigest()
 
+save_file = f"{hash_value[:7]}-{EMBEDDINGS_FILE}"
+#save_file = EMBEDDINGS_FILE
+
+def save_progress():
+    with tempfile.NamedTemporaryFile('w', delete=False) as temp_file:
+        json.dump({"hash": hash_value, "document_vectors": document_vectors, "chunk_store": chunk_store}, temp_file)
+        temp_file_path = temp_file.name
+    os.replace(temp_file_path, save_file)
+
 # Load embeddings from file if they exist and match the hash
-if os.path.exists(EMBEDDINGS_FILE):
-    with open(EMBEDDINGS_FILE, 'r') as f:
+if os.path.exists(save_file):
+    with open(save_file, 'r') as f:
         try:
             saved_data = json.load(f)
             if saved_data.get("hash") == hash_value:
@@ -51,6 +61,7 @@ def embed(text):
     return embed_response["embedding"]
 
 # Embed chunks and save to file after each document is processed
+chunks_processed = 0
 for info in loaded_files:
     date = info["date"]
     content = info["content"]
@@ -63,20 +74,24 @@ for info in loaded_files:
 
         # Skip if already embedded
         if id in chunk_store:
+            # little trick so that it doesn't save repeatedly when we've already processed chunks in json, but haven't seen them here
+            if chunks_processed % 100 == 0:
+                chunks_processed += 1
             continue
 
-
+        chunks_processed += 1
         vector = embed(chunk)
 
         document_vectors.append({"vector": vector, "id": id})
         chunk_store[id] = date + "\n" + chunk
 
-        # Save progress to file using a temporary file to avoid corruption
-        with tempfile.NamedTemporaryFile('w', delete=False) as temp_file:
-            json.dump({"hash": hash_value, "document_vectors": document_vectors, "chunk_store": chunk_store}, temp_file)
-            temp_file_path = temp_file.name
-        os.replace(temp_file_path, EMBEDDINGS_FILE)
-        print(id)
+        # Save progress to file using a temporary file to avoid corruption. But don't do it too much, it slows down pre-processing
+        if chunks_processed % 100 == 0:
+            save_progress()
+    print(date)
+
+# one last time
+save_progress()
 
 preprocessing_timer.stop_and_log(corpus_size)
 
