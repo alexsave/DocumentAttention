@@ -22,17 +22,21 @@ stop = stopwords.words('english')
 additional_terms = ['', 'got', 'really', 'pretty', 'bit', 'didnt', 'get', 'also', 'like', 'went', 'go', 'im']
 stop.extend(additional_terms)
 
-def final_prompt(context, query):
+
+
+def final_prompt(context, query, use_history=None):
     return f"""
     Context:
     === start context ===
     {context}
     === end context ===
 
+    {"Chat:\n=== start chat ===\n"+use_history.get_context()+"\n=== end chat ===" if use_history != None and len(use_history.get_context())>0 else ""}
+
     Prompt:
     {query}
 
-    Respond to the prompt using the information in the context. Just reply in JSON format with a step-by-step explanation followed by a detailed and concise final response. Use just a single JSON object, e.g. {{"explanation": "1. [REASONING] 2. [REASONING] 3. [REASONING] ", "response": "[FINAL RESPONSE]"}}.
+    Respond to the prompt using the information in the context and chat history. Just reply in JSON format with a step-by-step explanation followed by a detailed and concise final response. Use just a single JSON object, e.g. {{"explanation": "1. [REASONING] 2. [REASONING] 3. [REASONING] ", "response": "[FINAL RESPONSE]"}}. Keep the "response" attribute a string.
     """
     #Respond to the prompt using the information in the context. Just reply in JSON format with a step-by-step explanation followed by a detailed and concise final response. Use just a single JSON object, e.g. {{"explanation": "1. The text mentions Robs birthday. 2. The text has the date 12/5. 3. ... ", "response": "Robs birthday is December 5th"}}.
     #Respond to the prompt using the information in the context. Do not explain anything, just reply in JSON format with the response and a step-by-step explanation. Just use a single JSON object, for example: {{"explanation": "1. The text mentions Robs birthday. 2. The text has the date 12/5. 3. ... ", "response": "Robs birthday is December 5th"}}.
@@ -183,12 +187,14 @@ Query: {query}"""
 
 
 # assuming this handles garbage collection automatically
+# this has a lot of queries, could probably more more stuff to this and avoid params
 class RetrievalHandler:
-    def __init__(self, query, full_scores, chunk_store, page_size=20):
+    def __init__(self, query, full_scores, chunk_store, page_size=20, history=None):
         self.query = query
         self.full_scores = full_scores
         self.page_size = page_size
         self.chunk_store = chunk_store
+        self.history = history
         # essentially pagination
         self.start = 0
 
@@ -207,6 +213,23 @@ class RetrievalHandler:
         if self.has_more():
             scores = self.__get_next_page()
         chunk_context = '\n\n'.join([self.chunk_store[i] for i,_ in scores[::-1]])
-        prompt = final_prompt(chunk_context, self.query)
+        prompt = final_prompt(chunk_context, self.query, use_history=self.history)
+        print(prompt)
         return prompt
 
+class ChatHistory:
+    def __init__(self):
+        self.history = []
+
+    def log_user(self, text):
+        self.history.append({"role":"user", "text":text})
+
+    def log_llm(self, text):
+        self.history.append({"role":"llm", "text":text})
+
+    def get_context(self):
+        return '\n'.join([f"{h["role"]}: {h["text"]}" for h in self.history[-7:-1]])
+
+    def clear(self):
+        # hope this doesn't cause problems
+        self.__init__()

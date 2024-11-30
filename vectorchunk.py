@@ -5,7 +5,7 @@ import os
 import hashlib
 import tempfile
 
-from common import RetrievalHandler, TimerLogger, chunkenize, cos_similarity, embed, expand, llm, loadfiles, chunk_size_bytes
+from common import ChatHistory, RetrievalHandler, TimerLogger, chunkenize, cos_similarity, embed, expand, llm, loadfiles, chunk_size_bytes
 
 DOCUMENT_FREQUENCY = "DOCUMENT_FREQUENCY"
 INVERSE_DOCUMENT_FREQUENCY = "INVERSE_DOCUMENT_FREQUENCY"
@@ -91,17 +91,30 @@ preprocessing_timer.stop_and_log(corpus_size)
 
 holder = False
 
+chat_history = ChatHistory()
+
 while True:
     query = input("user>")
     query_timer = TimerLogger("Query")
 
-    if query == 'more' and holder != False and holder.has_more():  
-        # special case
-        # get next 7 or so results
-        prompt = holder.build_prompt()
+    if query == 'clear':
+        chat_history.clear()
+        print('system>cleared chat history')
+        continue
 
+    elif query == 'more':
+        if holder == False:
+            print('system>no question previously asked')
+            continue
+        elif not holder.has_more():
+            print('system>out of search results')
+            continue
+        else:
+            chat_history.log_user(query)
+            prompt = holder.build_prompt()
 
     else:
+        chat_history.log_user(query)
         expanded_query = query + expand(query, type='tfidf')
 
         embedded_query = embed(expanded_query)
@@ -115,14 +128,18 @@ while True:
             combined_scores[k] = score
 
         sorted_combined_scores = combined_scores.most_common()
-        holder = RetrievalHandler(query, sorted_combined_scores, chunk_store, chunks_per_query)
+        holder = RetrievalHandler(query, sorted_combined_scores, chunk_store, chunks_per_query, history=None)
         prompt = holder.build_prompt()
     
-    out,stats = llm(prompt, False, False, format='json', response_stream=True)
+    out,stats = llm(prompt, True, False, format='json', response_stream=False)
     prompt_tokens = stats["prompt_eval_count"]
     print(f"{prompt_tokens} tokens in the prompt, {stats["eval_count"]} tokens in response, {prompt_tokens/chunks_per_query:.2f} tokens per chunk, {chunk_size_bytes/(prompt_tokens/chunks_per_query):.2f} estimated bytes per token, another estimate: {len(prompt)/prompt_tokens:.2f}")
     obj = json.loads(out.strip())
-    #print(obj["response"])
+
+    if "response" in obj:
+        chat_history.log_llm(obj["response"])
+    else:
+        chat_history.log_llm("")
 
     
-    #query_timer.stop_and_log(corpus_size)
+    query_timer.stop_and_log(corpus_size)
