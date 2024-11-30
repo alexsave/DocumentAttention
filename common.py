@@ -36,7 +36,7 @@ def final_prompt(context, query, use_history=None):
     Prompt:
     {query}
 
-    Respond to the prompt using the information in the context and chat history. Just reply in JSON format with a step-by-step explanation followed by a detailed and concise final response. Use just a single JSON object, e.g. {{"explanation": "1. [REASONING] 2. [REASONING] 3. [REASONING] ", "response": "[FINAL RESPONSE]"}}. Keep the "response" attribute a string.
+    Respond to the prompt using the information in the context and chat history. Just reply in JSON format with a step-by-step explanation followed by a detailed and concise final response. Use just a single JSON object, e.g. {{"explanation": "1. [REASONING] 2. [REASONING] 3. [REASONING] ", "response": "[FINAL RESPONSE]"}}. Keep the "response" attribute a detailed string rather than a object or list.
     """
     #Respond to the prompt using the information in the context. Just reply in JSON format with a step-by-step explanation followed by a detailed and concise final response. Use just a single JSON object, e.g. {{"explanation": "1. The text mentions Robs birthday. 2. The text has the date 12/5. 3. ... ", "response": "Robs birthday is December 5th"}}.
     #Respond to the prompt using the information in the context. Do not explain anything, just reply in JSON format with the response and a step-by-step explanation. Just use a single JSON object, for example: {{"explanation": "1. The text mentions Robs birthday. 2. The text has the date 12/5. 3. ... ", "response": "Robs birthday is December 5th"}}.
@@ -190,7 +190,7 @@ Expand the following query using related terms, synonyms, semantic variations, a
 
 Query: {query}"""
 
-    output,_= llm(prompt, True, True)
+    output,_= llm(prompt, False, False)
     return output
 
 
@@ -222,7 +222,7 @@ class RetrievalHandler:
             scores = self.__get_next_page()
         chunk_context = '\n\n'.join([self.chunk_store[i] for i,_ in scores[::-1]])
         prompt = final_prompt(chunk_context, self.query, use_history=self.history)
-        print(prompt)
+        #print(prompt)
         return prompt
 
 class ChatHistory:

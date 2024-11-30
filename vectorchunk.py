@@ -82,7 +82,7 @@ for info in loaded_files:
         # Save progress to file using a temporary file to avoid corruption. But don't do it too much, it slows down pre-processing
         if chunks_processed % 100 == 0:
             save_progress()
-    print(date)
+    #print(date)
 
 # one last time
 save_progress()
@@ -116,7 +116,7 @@ while True:
     else:
         chat_history.log_user(query)
         expanded_query = query + expand(query, type='tfidf', history=chat_history)
-        print(expanded_query)
+        #print(expanded_query)
 
         embedded_query = embed(expanded_query)
     
@@ -132,10 +132,11 @@ while True:
         holder = RetrievalHandler(query, sorted_combined_scores, chunk_store, chunks_per_query, history=None)
         prompt = holder.build_prompt()
     
-    out,stats = llm(prompt, True, False, format='json', response_stream=False)
+    out,stats = llm(prompt, False, False, format='json', response_stream=True)
     prompt_tokens = stats["prompt_eval_count"]
-    print(f"{prompt_tokens} tokens in the prompt, {stats["eval_count"]} tokens in response, {prompt_tokens/chunks_per_query:.2f} tokens per chunk, {chunk_size_bytes/(prompt_tokens/chunks_per_query):.2f} estimated bytes per token, another estimate: {len(prompt)/prompt_tokens:.2f}")
+    #print(f"{prompt_tokens} tokens in the prompt, {stats["eval_count"]} tokens in response, {prompt_tokens/chunks_per_query:.2f} tokens per chunk, {chunk_size_bytes/(prompt_tokens/chunks_per_query):.2f} estimated bytes per token, another estimate: {len(prompt)/prompt_tokens:.2f}")
     obj = json.loads(out.strip())
+    print(obj)
 
     if "response" in obj:
         chat_history.log_llm(obj["response"])
@@ -143,4 +144,4 @@ while True:
         chat_history.log_llm("")
 
     
-    query_timer.stop_and_log(corpus_size)
+    #query_timer.stop_and_log(corpus_size)
