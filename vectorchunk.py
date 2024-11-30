@@ -115,7 +115,8 @@ while True:
 
     else:
         chat_history.log_user(query)
-        expanded_query = query + expand(query, type='tfidf')
+        expanded_query = query + expand(query, type='tfidf', history=chat_history)
+        print(expanded_query)
 
         embedded_query = embed(expanded_query)
     

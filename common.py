@@ -31,7 +31,7 @@ def final_prompt(context, query, use_history=None):
     {context}
     === end context ===
 
-    {"Chat:\n=== start chat ===\n"+use_history.get_context()+"\n=== end chat ===" if use_history != None and len(use_history.get_context())>0 else ""}
+    {chat_history_block(use_history)}
 
     Prompt:
     {query}
@@ -40,6 +40,10 @@ def final_prompt(context, query, use_history=None):
     """
     #Respond to the prompt using the information in the context. Just reply in JSON format with a step-by-step explanation followed by a detailed and concise final response. Use just a single JSON object, e.g. {{"explanation": "1. The text mentions Robs birthday. 2. The text has the date 12/5. 3. ... ", "response": "Robs birthday is December 5th"}}.
     #Respond to the prompt using the information in the context. Do not explain anything, just reply in JSON format with the response and a step-by-step explanation. Just use a single JSON object, for example: {{"explanation": "1. The text mentions Robs birthday. 2. The text has the date 12/5. 3. ... ", "response": "Robs birthday is December 5th"}}.
+
+
+def chat_history_block(history=None):
+    return "Chat:\n=== start chat ===\n"+history.get_context()+"\n=== end chat ===" if history != None and len(history.get_context())>0 else ""
 
 
 def chunkenize(content):
@@ -170,15 +174,19 @@ class TimerLogger:
         print(f"{self.label} stats: {elapsed_time * 1000:.2f} milliseconds, {corpus_size} bytes, {(elapsed_time * 1000 / corpus_size) * 1024 * 1024:.2f} milliseconds/MB, {(elapsed_time / corpus_size) * 1024*1024:.4f} seconds/MB")
 
 
-def expand(query, type='tfidf'):
+def expand(query, type='tfidf', history=None):
     prompt = ""
     if type == 'tfidf':
-        prompt = f"""You are an advanced language model tasked with expanding a given query to make it more comprehensive for searching over a TFIDF index. Your goal is to include synonyms, alternate phrasings, relevant concepts, and additional keywords related to the input query. Ensure that the expanded terms stay relevant and avoid introducing unrelated noise. Do not explain or discuss, just give the answer. Output the expanded query as a single list of terms and phrases.
+        prompt = f"""Expand the following query using related terms, synonyms, alternate phrasings, and contextual keywords, considering the context provided in the chat history to improve relevance for searching in a TFIDF index. Output only the expanded query as a list of terms and phrases, without any explanation or additional context.
+
+{chat_history_block(history)}
 
 Query: {query}"""
     else:
         prompt = f"""
-Expand the following query with related terms, synonyms, semantic variations, and contextual keywords to enhance relevance for searching in a vector database. Output only the expanded query as a list of terms and phrases, with no explanation or additional context.
+Expand the following query using related terms, synonyms, semantic variations, and contextual keywords, considering the context provided in the chat history to enhance relevance for searching in a vector database. Output only the expanded query as a list of terms and phrases, without any explanation or additional context.
+
+{chat_history_block(history)}
 
 Query: {query}"""
 
