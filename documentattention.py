@@ -15,7 +15,7 @@ preprocessing_timer.start()
 corpus_size = 0
 
 ATTENTION_FILE = "attention.pkl"
-
+#Cool idea in theory but very very very slow
 DIMENSION_PROMPTS = {
   "Summary": {
     "document_prompt": "Summarize the main story or sequence of events.",

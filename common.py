@@ -14,6 +14,9 @@ EMBED_MODEL = 'nomic-embed-text'
 
 chunk_size_bytes = 1024
 
+# don't quote me on this
+average_bytes_per_token = 3.5
+
 stop = stopwords.words('english')
 
 additional_terms = ['got', 'really', 'pretty', 'bit', 'didnt', 'get', 'also', 'like', 'went', 'go', 'im']
@@ -45,19 +48,47 @@ def chunkenize(content):
     return chunks
 
 
-def llm(prompt, log=False, user_log=False, format=''):
+def llm(prompt, log=False, user_log=False, format='', response_stream=False):
     output = ""
     stats = {}
     if user_log:
         print(f"USER>{prompt}")
-    if log:
+    if response_stream:
+        # basically parse JSON in place
+        response_end = False
+        print(f"{LLM_MODEL}>", end='', flush=True)
+        for part in generate(LLM_MODEL, prompt, stream=True, format=format):
+            if 'prompt_eval_duration' in part:
+                stats = part
+            # this indicates that they've already printed the "response": part, and now we want the rest of the text
+            # i assume the " is a token itself
+            # let me set newline to check this real quick
+            p = part['response']
+
+            if response_end == False and ('"response": "' in output or '"response":"' in output):
+                # bit hacky. not sure what to look for for the end of response
+                # ah, so '."' is a token, as well as '}'
+                # might be llama3.2 specific, but here goes
+                # so what we're looking for is that response has start, but not finished yet
+                if p == '."':
+                    #print('first condition hit')
+                    print('.', flush=True)
+                    response_end = True
+                elif p == '}':
+                    #print('second condition hit')
+                    response_end = True
+                else:
+                    print(p, end='', flush=True)
+            output += p
+        print()
+
+    elif log:
         print(f"{LLM_MODEL}>", end='')
         for part in generate(LLM_MODEL, prompt, stream=True, format=format):
             if 'prompt_eval_duration' in part:
                 stats = part
             output += part['response']
-            if log:
-                print(part['response'], end='', flush=True)
+            print(part['response'], end='', flush=True)
         print()
 
     else:
@@ -135,5 +166,19 @@ class TimerLogger:
             raise ValueError("Timer was not started.")
         end_time = time.time()
         elapsed_time = end_time - self.start_time
-        print(f"{self.label} stats: {elapsed_time * 1000:.2f} milliseconds, {corpus_size} bytes, {elapsed_time / corpus_size:.6f} seconds/byte, {(elapsed_time * 1000 / corpus_size) * 1024 * 1024:.2f} milliseconds/MB, {(elapsed_time / corpus_size) * 1024*1024:.4f} seconds/MB")
+        print(f"{self.label} stats: {elapsed_time * 1000:.2f} milliseconds, {corpus_size} bytes, {(elapsed_time * 1000 / corpus_size) * 1024 * 1024:.2f} milliseconds/MB, {(elapsed_time / corpus_size) * 1024*1024:.4f} seconds/MB")
+
+
+# assuming this handles garbage collection well?
+class RankHolder:
+    def __init__(self, full_scores, page_size=20):
+        self.full_scores = full_scores
+        self.page_size = page_size
+        # essentially pagination
+        self.start = 0
+
+    def get(self):
+        res = self.full_scores[self.start:(self.start+self.page_size)]
+        self.start += self.page_size
+        return res
 
