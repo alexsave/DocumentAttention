@@ -156,9 +156,6 @@ def save_progress(save_file, data):
 class TimerLogger:
     def __init__(self, label):
         self.label = label
-        self.start_time = None
-
-    def start(self):
         self.start_time = time.time()
 
     def stop_and_log(self, corpus_size):

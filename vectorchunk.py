@@ -1,17 +1,17 @@
 import collections
+import json
 import pickle
 import os
 import hashlib
 import tempfile
 
-from common import TimerLogger, chunkenize, cos_similarity, embed, final_prompt, llm, loadfiles, chunk_size_bytes
+from common import RetrievalHandler, TimerLogger, chunkenize, cos_similarity, embed, llm, loadfiles, chunk_size_bytes
 
 DOCUMENT_FREQUENCY = "DOCUMENT_FREQUENCY"
 INVERSE_DOCUMENT_FREQUENCY = "INVERSE_DOCUMENT_FREQUENCY"
 TERM_FREQUENCY = "TERM_FREQUENCY"
 
 preprocessing_timer = TimerLogger("Preprocessing")
-preprocessing_timer.start()
 
 corpus_size = 0
 
@@ -89,32 +89,40 @@ save_progress()
 
 preprocessing_timer.stop_and_log(corpus_size)
 
+holder = False
 
 while True:
     query = input(">")
     query_timer = TimerLogger("Query")
-    query_timer.start()
 
-    embedded_query = embed(query)
+    if query == 'more' and holder != False and holder.has_more():  
+        # special case
+        # get next 7 or so results
+        prompt = holder.build_prompt()
 
-    combined_scores = collections.Counter()
+        out, stats = llm(prompt, log=True, user_log=False, format='json', response_stream=False)
 
-    for k,v in document_vectors.items():
-        score = cos_similarity(embedded_query, v)
-        combined_scores[k] = score
+    else:
 
-    sorted_combined_scores = combined_scores.most_common()
-    for chunk_id, score in sorted_combined_scores[:7]:
-        print(score, chunk_id, chunk_store[chunk_id][:100].replace('\n', ''))
-        #print(score, chunk_store[chunk_id])
+        embedded_query = embed(query)
+    
+        combined_scores = collections.Counter()
 
-    chunk_context = '\n\n'.join([chunk_store[i] for i,s in sorted_combined_scores[:7][::-1]])
+        chunks_per_query = 5
+    
+        for k,v in document_vectors.items():
+            score = cos_similarity(embedded_query, v)
+            combined_scores[k] = score
 
-    prompt = final_prompt(chunk_context, query)
+        sorted_combined_scores = combined_scores.most_common()
+        holder = RetrievalHandler(query, sorted_combined_scores, chunk_store, chunks_per_query)
+        prompt = holder.build_prompt()
+    
+        out,stats = llm(prompt, True, True, format='json')
+        prompt_tokens = stats["prompt_eval_count"]
+        print(f"{prompt_tokens} tokens in the prompt, {stats["eval_count"]} tokens in response, {prompt_tokens/chunks_per_query:.2f} tokens per chunk, {chunk_size_bytes/(prompt_tokens/chunks_per_query):.2f} estimated bytes per token, another estimate: {len(prompt)/prompt_tokens:.2f}")
+        obj = json.loads(out.strip())
+        print(obj["response"])
 
-    out = llm(prompt, True, True, format='json')
-    # JSON isn't working perfectly. Rather than retrying, which could take fuckign forever, let's make the prompt better
-    #obj = json.loads(out.strip())
-    #print(obj["response"])
-
+    
     query_timer.stop_and_log(corpus_size)

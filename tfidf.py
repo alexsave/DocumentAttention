@@ -2,13 +2,12 @@ import collections
 import math
 import json
 
-from common import RetrievalHandler, TimerLogger, chunkenize, final_prompt, llm, loadfiles, tokenize, chunk_size_bytes
+from common import RetrievalHandler, TimerLogger, chunkenize, llm, loadfiles, tokenize, chunk_size_bytes
 
 INVERSE_DOCUMENT_FREQUENCY = "INVERSE_DOCUMENT_FREQUENCY"
 TERM_FREQUENCY = "TERM_FREQUENCY"
 
 preprocessing_timer = TimerLogger("Preprocessing")
-preprocessing_timer.start()
 
 corpus_size = 0
 
@@ -59,7 +58,6 @@ holder = False
 while True:
     query = input("user>")
     query_timer = TimerLogger("Query")
-    query_timer.start()
 
     if query == 'more' and holder != False and holder.has_more():  
         # special case
