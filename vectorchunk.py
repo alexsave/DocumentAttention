@@ -4,7 +4,7 @@ import os
 import hashlib
 import tempfile
 
-from common import TimerLogger, chunkenize, final_prompt, llm, loadfiles, chunk_size_bytes
+from common import TimerLogger, chunkenize, cos_similarity, embed, final_prompt, llm, loadfiles, chunk_size_bytes
 
 DOCUMENT_FREQUENCY = "DOCUMENT_FREQUENCY"
 INVERSE_DOCUMENT_FREQUENCY = "INVERSE_DOCUMENT_FREQUENCY"

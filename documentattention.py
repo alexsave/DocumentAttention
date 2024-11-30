@@ -118,16 +118,11 @@ save_file = f"{hash_value[:7]}-{ATTENTION_FILE}"
 def extract_metadata(chunk, type='document'):
     metadata = {}
     suffix = " Do not explain anything or repeat the question, just answer. The response will be put into a vector db. Keep the response to a concise sentence."
-    #i=0
     for key, prompts in DIMENSION_PROMPTS.items():
         full_prompt = f"{prompts[("document_prompt" if type=='document' else "query_prompt")]}{suffix}\n\nText:\n{chunk}"
         response, stats = llm(full_prompt)
-        #print(response)
         # should we keep original response rather than just embed?
         metadata[key] = embed(response.strip())
-        #i += 1
-        #if i > 1:
-            #break
 
     # this just takes the chunk and embeds it. could be useful, we'll see. 
     #metadata["raw"] = embed(chunk)
@@ -160,12 +155,13 @@ for info in loaded_files:
 
     for i, chunk in enumerate(chunks):
         id = f"{date}#{i}"
+        print(id)
 
         chunk_store[id] = date + "\n" + chunk
         # Skip if already embedded
         if id in dimension_vectors:
             # little trick so that it doesn't save repeatedly when we've already processed chunks in json, but haven't seen them here
-            if chunks_processed % 100 == 0:
+            if chunks_processed % 5 == 0:
                 chunks_processed += 1
             continue
 
@@ -175,7 +171,8 @@ for info in loaded_files:
         dimension_vectors[id] = metadata
 
         # Save progress to file using a temporary file to avoid corruption. But don't do it too much, it slows down pre-processing
-        if chunks_processed % 100 == 0:
+        # save more frequently cuz each chunk is slow af
+        if chunks_processed % 5 == 0:
             save_progress(save_file, {"hash": hash_value, "dimension_vectors": dimension_vectors})
     print(date)
 
