@@ -55,6 +55,18 @@ def chunkenize(content):
         start_index += int(chunk_size_bytes/2)
     return chunks
 
+# use a 1/64 overlap
+# so like 0-64, 63-127, 126-189, ...
+def chunkenize_smalloverlap(content, size=chunk_size_bytes):
+    overlap = int(size / 64)
+    chunks = []
+    start_index = 0
+    while start_index < len(content):#-(size-overlap):
+        end_index = start_index + size
+        chunks.append(content[start_index:end_index])
+        start_index += int(size-overlap)
+    return chunks
+
 
 def llm(prompt, log=False, user_log=False, format='', response_stream=False):
     output = ""

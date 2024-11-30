@@ -2,3 +2,5 @@ sample_journals
 __pycache__
 *.json
 *.pkl
+lib
+graph.html

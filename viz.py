@@ -18,7 +18,6 @@ corpus_size = 0
 RELATIONSHIPS_FILE = "relationships.pkl"
 
 relationships_store = {}
-chunk_store = {}
 G = nx.DiGraph()  # Initialize a directed graph
 
 loaded_files = loadfiles()
@@ -35,7 +34,6 @@ def save_progress():
         pickle.dump({
             "hash": hash_value,
             "relationships_store": relationships_store,
-            "chunk_store": chunk_store
         }, temp_file)
         temp_file_path = temp_file.name
     os.replace(temp_file_path, save_file)
@@ -48,7 +46,6 @@ if os.path.exists(save_file):
             saved_data = pickle.load(f)
             if saved_data.get("hash") == hash_value:
                 relationships_store = saved_data["relationships_store"]
-                chunk_store = saved_data["chunk_store"]
                 print("Loaded existing relationships from file.")
                 relationships_loaded = True
             else:
@@ -87,57 +84,15 @@ Example Output:
 
 # Process chunks and extract relationships
 chunks_processed = 0
-if not relationships_loaded:
-    for info in loaded_files:
-        date = info["date"]
-        content = info["content"]
-        corpus_size += len(content)
-
-        chunks = chunkenize(content)
-
-        for i, chunk in enumerate(chunks):
-            id = f"{date}#{i}"
-
-            chunk_store[id] = date + "\n" + chunk
-
-            # Skip if already processed
-            if id in relationships_store:
-                if chunks_processed % 100 == 0:
-                    chunks_processed += 1
-                continue
-
-            chunks_processed += 1
-            relationships = extract_relationships(chunk)
-
-            relationships_store[id] = {
-                'date': date,
-                'chunk': chunk,
-                'relationships': relationships
-            }
-
-            # Build the graph
-            for rel in relationships:
-                subject = rel.get('subject', '').strip()
-                predicate = rel.get('predicate', '').strip()
-                obj = rel.get('object', '').strip()
-                if subject and predicate and obj:
-                    G.add_edge(subject, obj, label=predicate)
-
-            # Save progress every 100 chunks
-            if chunks_processed % 100 == 0:
-                save_progress()
-    # Save the final progress
-    save_progress()
-else:
-    # Build the graph from the loaded relationships_store
-    for data in relationships_store.values():
-        relationships = data['relationships']
-        for rel in relationships:
-            subject = rel.get('subject', '').strip() if rel.get('subject','') else ''
-            predicate = rel.get('predicate', '').strip() if rel.get('predicate','') else ''
-            obj = rel.get('object', '').strip() if rel.get('object','') else ''
-            if subject and predicate and obj:
-                G.add_edge(subject, obj, label=predicate)
+# Build the graph from the loaded relationships_store
+for data in relationships_store.values():
+    relationships = data['relationships']
+    for rel in relationships:
+        subject = rel.get('subject', '').strip() if rel.get('subject','') else ''
+        predicate = rel.get('predicate', '').strip() if rel.get('predicate','') else ''
+        obj = rel.get('object', '').strip() if rel.get('object','') else ''
+        if subject and predicate and obj:
+            G.add_edge(subject, obj, label=predicate)
 
 #preprocessing_timer.stop_and_log(corpus_size)
 

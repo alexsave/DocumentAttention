@@ -5,7 +5,7 @@ import os
 import hashlib
 import tempfile
 
-from common import ChatHistory, RetrievalHandler, TimerLogger, chunkenize, llm, loadfiles, chunk_size_bytes
+from common import ChatHistory, RetrievalHandler, TimerLogger, chunkenize, chunkenize_smalloverlap, llm, loadfiles, chunk_size_bytes
 
 EMBED_MODEL = 'nomic-embed-text'
 
@@ -29,7 +29,7 @@ save_file = f"{hash_value[:7]}-{RELATIONSHIPS_FILE}"
 # Function to save progress using pickle
 def save_progress():
     with tempfile.NamedTemporaryFile('wb', delete=False) as temp_file:
-        pickle.dump({"hash": hash_value, "relationships_store": relationships_store, "chunk_store": chunk_store}, temp_file)
+        pickle.dump({"hash": hash_value, "relationships_store": relationships_store, }, temp_file)
         temp_file_path = temp_file.name
     os.replace(temp_file_path, save_file)
 
@@ -40,7 +40,7 @@ if os.path.exists(save_file):
             saved_data = pickle.load(f)
             if saved_data.get("hash") == hash_value:
                 relationships_store = saved_data["relationships_store"]
-                chunk_store = saved_data["chunk_store"]
+                #chunk_store = saved_data["chunk_store"]
                 print("Loaded existing relationships from file.")
             else:
                 print("Relationships file found but hash mismatch. Starting fresh.")
@@ -81,11 +81,13 @@ for info in loaded_files:
     content = info["content"]
     corpus_size += len(content)
 
-    chunks = chunkenize(content)
+    chunks = chunkenize_smalloverlap(content, 8192)
 
     for i, chunk in enumerate(chunks):
         id = f"{date}#{i}"
         print(id)
+        #print(chunk)
+
 
         chunk_store[id] = date + "\n" + chunk
 
