@@ -19,7 +19,7 @@ average_bytes_per_token = 3.5
 
 stop = stopwords.words('english')
 
-additional_terms = ['got', 'really', 'pretty', 'bit', 'didnt', 'get', 'also', 'like', 'went', 'go', 'im']
+additional_terms = ['', 'got', 'really', 'pretty', 'bit', 'didnt', 'get', 'also', 'like', 'went', 'go', 'im']
 stop.extend(additional_terms)
 
 def final_prompt(context, query):
@@ -80,7 +80,7 @@ def llm(prompt, log=False, user_log=False, format='', response_stream=False):
                 else:
                     print(p, end='', flush=True)
             output += p
-        print()
+        #print()
 
     elif log:
         print(f"{LLM_MODEL}>", end='')
@@ -164,6 +164,22 @@ class TimerLogger:
         end_time = time.time()
         elapsed_time = end_time - self.start_time
         print(f"{self.label} stats: {elapsed_time * 1000:.2f} milliseconds, {corpus_size} bytes, {(elapsed_time * 1000 / corpus_size) * 1024 * 1024:.2f} milliseconds/MB, {(elapsed_time / corpus_size) * 1024*1024:.4f} seconds/MB")
+
+
+def expand(query, type='tfidf'):
+    prompt = ""
+    if type == 'tfidf':
+        prompt = f"""You are an advanced language model tasked with expanding a given query to make it more comprehensive for searching over a TFIDF index. Your goal is to include synonyms, alternate phrasings, relevant concepts, and additional keywords related to the input query. Ensure that the expanded terms stay relevant and avoid introducing unrelated noise. Do not explain or discuss, just give the answer. Output the expanded query as a single list of terms and phrases.
+
+Query: {query}"""
+    else:
+        prompt = f"""
+Expand the following query with related terms, synonyms, semantic variations, and contextual keywords to enhance relevance for searching in a vector database. Output only the expanded query as a list of terms and phrases, with no explanation or additional context.
+
+Query: {query}"""
+
+    output,_= llm(prompt, True, True)
+    return output
 
 
 # assuming this handles garbage collection automatically

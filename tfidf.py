@@ -2,7 +2,7 @@ import collections
 import math
 import json
 
-from common import RetrievalHandler, TimerLogger, chunkenize, llm, loadfiles, tokenize, chunk_size_bytes
+from common import RetrievalHandler, TimerLogger, chunkenize, expand, llm, loadfiles, tokenize, chunk_size_bytes
 
 INVERSE_DOCUMENT_FREQUENCY = "INVERSE_DOCUMENT_FREQUENCY"
 TERM_FREQUENCY = "TERM_FREQUENCY"
@@ -67,14 +67,15 @@ while True:
         out, stats = llm(prompt, log=True, user_log=False, format='json', response_stream=False)
 
         prompt_tokens = stats["prompt_eval_count"]
-        print(f"{prompt_tokens} tokens in the prompt, {stats["eval_count"]} tokens in response, {prompt_tokens/chunks_per_query:.2f} tokens per chunk, {chunk_size_bytes/(prompt_tokens/chunks_per_query):.2f} estimated bytes per token, another estimate: {len(prompt)/prompt_tokens:.2f}")
+        #print(f"{prompt_tokens} tokens in the prompt, {stats["eval_count"]} tokens in response, {prompt_tokens/chunks_per_query:.2f} tokens per chunk, {chunk_size_bytes/(prompt_tokens/chunks_per_query):.2f} estimated bytes per token, another estimate: {len(prompt)/prompt_tokens:.2f}")
         obj = json.loads(out.strip())
-        print(obj["response"])
+        #print(obj["response"])
 
     else:
 
+        expanded_query = query + expand(query, type='tfidf')
 
-        tokenized_query = tokenize(query)
+        tokenized_query = tokenize(expanded_query)
 
         print(tokenized_query)
     
@@ -104,7 +105,7 @@ while True:
             
             # Print the top 7 scores and chunk_ids
 
-        chunks_per_query = 5
+        chunks_per_query = 10
     
         sorted_combined_scores = combined_scores.most_common()
         #for chunk_id, score in sorted_combined_scores[:chunks_per_query]:
@@ -118,7 +119,7 @@ while True:
 
         prompt_tokens = stats["prompt_eval_count"]
         print(f"{prompt_tokens} tokens in the prompt, {stats["eval_count"]} tokens in response, {prompt_tokens/chunks_per_query:.2f} tokens per chunk, {chunk_size_bytes/(prompt_tokens/chunks_per_query):.2f} estimated bytes per token, another estimate: {len(prompt)/prompt_tokens:.2f}")
-        obj = json.loads(out.strip())
-        print(obj["response"])
+        #obj = json.loads(out.strip())
+        #print(obj["response"])
     
     query_timer.stop_and_log(corpus_size)
