@@ -169,16 +169,31 @@ class TimerLogger:
         print(f"{self.label} stats: {elapsed_time * 1000:.2f} milliseconds, {corpus_size} bytes, {(elapsed_time * 1000 / corpus_size) * 1024 * 1024:.2f} milliseconds/MB, {(elapsed_time / corpus_size) * 1024*1024:.4f} seconds/MB")
 
 
-# assuming this handles garbage collection well?
-class RankHolder:
-    def __init__(self, full_scores, page_size=20):
+# assuming this handles garbage collection automatically
+class RetrievalHandler:
+    def __init__(self, query, full_scores, chunk_store, page_size=20):
+        self.query = query
         self.full_scores = full_scores
         self.page_size = page_size
+        self.chunk_store = chunk_store
         # essentially pagination
         self.start = 0
 
-    def get(self):
+    def has_more(self):
+        return self.start < len(self.full_scores)
+
+    # returns another prompt
+    def __get_next_page(self):
+        # we can probably put the whole thing together here
         res = self.full_scores[self.start:(self.start+self.page_size)]
         self.start += self.page_size
         return res
+
+    def build_prompt(self):
+        scores = []
+        if self.has_more():
+            scores = self.__get_next_page()
+        chunk_context = '\n\n'.join([self.chunk_store[i] for i,_ in scores[::-1]])
+        prompt = final_prompt(chunk_context, self.query)
+        return prompt
 

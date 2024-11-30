@@ -2,7 +2,7 @@ import collections
 import math
 import json
 
-from common import TimerLogger, chunkenize, final_prompt, llm, loadfiles, tokenize, chunk_size_bytes
+from common import RetrievalHandler, TimerLogger, chunkenize, final_prompt, llm, loadfiles, tokenize, chunk_size_bytes
 
 INVERSE_DOCUMENT_FREQUENCY = "INVERSE_DOCUMENT_FREQUENCY"
 TERM_FREQUENCY = "TERM_FREQUENCY"
@@ -54,15 +54,24 @@ for k,v in index.items():
 
 preprocessing_timer.stop_and_log(corpus_size)
 
+holder = False
+
 while True:
     query = input("user>")
     query_timer = TimerLogger("Query")
     query_timer.start()
 
-    if query == 'more': 
+    if query == 'more' and holder != False and holder.has_more():  
         # special case
-        x = 5
         # get next 7 or so results
+        prompt = holder.build_prompt()
+
+        out, stats = llm(prompt, log=True, user_log=False, format='json', response_stream=False)
+
+        prompt_tokens = stats["prompt_eval_count"]
+        print(f"{prompt_tokens} tokens in the prompt, {stats["eval_count"]} tokens in response, {prompt_tokens/chunks_per_query:.2f} tokens per chunk, {chunk_size_bytes/(prompt_tokens/chunks_per_query):.2f} estimated bytes per token, another estimate: {len(prompt)/prompt_tokens:.2f}")
+        obj = json.loads(out.strip())
+        print(obj["response"])
 
     else:
 
@@ -104,11 +113,10 @@ while True:
             #print(score, chunk_id)
             #print(score, chunk_store[chunk_id])
 
-        chunk_context = '\n\n'.join([chunk_store[i] for i,s in sorted_combined_scores[:chunks_per_query][::-1]])
-    
-        prompt = final_prompt(chunk_context, query)
+        holder = RetrievalHandler(query, sorted_combined_scores, chunk_store, chunks_per_query)
+        prompt = holder.build_prompt()
 
-        out, stats = llm(prompt, False, False, format='json', response_stream=True)
+        out, stats = llm(prompt, log=True, user_log=False, format='json', response_stream=False)
 
         prompt_tokens = stats["prompt_eval_count"]
         print(f"{prompt_tokens} tokens in the prompt, {stats["eval_count"]} tokens in response, {prompt_tokens/chunks_per_query:.2f} tokens per chunk, {chunk_size_bytes/(prompt_tokens/chunks_per_query):.2f} estimated bytes per token, another estimate: {len(prompt)/prompt_tokens:.2f}")
