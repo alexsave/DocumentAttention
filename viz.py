@@ -146,4 +146,4 @@ def visualize_graph_with_pyvis(G, min_degree=2):
     net.show('graph.html', notebook=False)  # Save and open the graph in a web browser
 
 # Call the PyVis visualization function
-visualize_graph_with_pyvis(G, min_degree=1)
+visualize_graph_with_pyvis(G, min_degree=2)
