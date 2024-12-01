@@ -90,9 +90,14 @@ for data in relationships_store.values():
     for rel in relationships:
         subject = rel.get('subject', '').strip() if rel.get('subject','') else ''
         predicate = rel.get('predicate', '').strip() if rel.get('predicate','') else ''
-        obj = rel.get('object', '').strip() if rel.get('object','') else ''
+        obj = rel.get('object', '').strip() if rel.get('object','') and not isinstance(rel.get('object',''), list) and not isinstance(rel.get('object',''),dict) else ''
         if subject and predicate and obj:
-            G.add_edge(subject, obj, label=predicate)
+            if True:
+                subject = subject.lower()
+                obj = obj.lower()
+                ex = ['null', 'none', 'me', 'myself', 'user', 'i', 'author', 'narrator', 'the narrator', 'self', 'the author', 'the writer']
+                if subject not in ex and obj not in ex:
+                    G.add_edge(subject, obj, label=predicate)
 
 #preprocessing_timer.stop_and_log(corpus_size)
 
@@ -128,7 +133,7 @@ def visualize_graph_with_pyvis(G, min_degree=2):
         'enabled': True,
         'barnesHut': {
             'gravitationalConstant': -80000,
-            'centralGravity': 0.9,
+            'centralGravity': 0.3,
             'springLength': 95,
             'springConstant': 0.04,
             'damping': 0.09,
@@ -146,4 +151,4 @@ def visualize_graph_with_pyvis(G, min_degree=2):
     net.show('graph.html', notebook=False)  # Save and open the graph in a web browser
 
 # Call the PyVis visualization function
-visualize_graph_with_pyvis(G, min_degree=2)
+visualize_graph_with_pyvis(G, min_degree=15)
