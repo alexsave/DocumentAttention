@@ -56,32 +56,6 @@ else:
     print("No existing relationships file found. Starting fresh.")
 
 # Function to extract relationships in JSON format
-def extract_relationships(chunk):
-    prompt = f"""You are to extract all relationships between entities mentioned in the following text. For each relationship, provide it as an object with keys "subject", "predicate", and "object". Return a JSON array of these relationship objects. Do not include any text other than the JSON array.
-
-Text:
-\"\"\"
-{chunk}
-\"\"\"
-
-Example Output:
-[
-  {{"subject": "Entity1", "predicate": "relation", "object": "Entity2"}},
-  {{"subject": "Entity3", "predicate": "relation", "object": "Entity4"}}
-]
-"""
-    response, stats = llm(prompt, temperature=0.1)  # Set low temperature
-
-    # Parse the JSON response
-    try:
-        relationships = json.loads(response.strip())
-        if not isinstance(relationships, list):
-            relationships = []
-    except json.JSONDecodeError as e:
-        print("JSONDecodeError:", e)
-        relationships = []
-    return relationships
-
 # Process chunks and extract relationships
 chunks_processed = 0
 # Build the graph from the loaded relationships_store
@@ -97,7 +71,10 @@ for data in relationships_store.values():
                 obj = obj.lower()
                 ex = ['null', 'none', 'me', 'myself', 'user', 'i', 'author', 'narrator', 'the narrator', 'self', 'the author', 'the writer']
                 if subject not in ex and obj not in ex:
-                    G.add_edge(subject, obj, label=predicate)
+                    if G.has_edge(subject, obj):
+                        G[subject][obj]['weight'] += 1
+                    else:
+                        G.add_edge(subject, obj, label=predicate, weight=1)
 
 #preprocessing_timer.stop_and_log(corpus_size)
 
@@ -126,7 +103,8 @@ def visualize_graph_with_pyvis(G, min_degree=2):
 
     for source, target, data in subgraph.edges(data=True):
         predicate = data.get('label', '')
-        net.add_edge(source, target, label=predicate, title=predicate)
+        weight = data.get('weight', 1)
+        net.add_edge(source, target, label=predicate, title=predicate, width=weight)  # Set edge thickness based on weight
 
     # Customize physics settings (optional)
     physics_options = {
@@ -151,4 +129,4 @@ def visualize_graph_with_pyvis(G, min_degree=2):
     net.show('graph.html', notebook=False)  # Save and open the graph in a web browser
 
 # Call the PyVis visualization function
-visualize_graph_with_pyvis(G, min_degree=15)
+visualize_graph_with_pyvis(G, min_degree=10)
