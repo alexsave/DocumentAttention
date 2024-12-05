@@ -28,6 +28,8 @@ chunk_store = {}
 
 loaded_files = loadfiles()
 
+show_year = False
+
 # Compute a hash to verify the state of the input files
 hash_input = pickle.dumps([chunk_size_bytes, EMBED_MODEL])
 hash_value = hashlib.sha256(hash_input).hexdigest()
@@ -76,13 +78,8 @@ Text:
 
 # Function to parse date strings
 def parse_date(date_str):
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%B %d, %Y", "%Y%m%d"):
-        try:
-            return datetime.strptime(date_str, fmt)
-        except ValueError:
-            continue
-    # If all formats fail, try parser
     try:
+        # Use dateutil.parser to parse the date string
         return parser.parse(date_str)
     except (ValueError, parser.ParserError):
         return None
@@ -117,13 +114,14 @@ for info in loaded_files:
         sentiment_score = extract_sentiment(chunk)
 
         sentiment_store[id] = {
-            'date': parsed_date,  # Store parsed date
-            'chunk': chunk,
+            'date_str': date_str,  # Store date string
+            'date': parsed_date,   # Store parsed date
+            #'chunk': chunk,
             'sentiment_score': sentiment_score
         }
 
-        # Save progress every 5 chunks
-        if chunks_processed % 5 == 0:
+        # Save progress every 50 chunks
+        if chunks_processed % 50 == 0:
             save_progress()
 
 # Save the final progress
@@ -133,68 +131,148 @@ preprocessing_timer.stop_and_log(corpus_size)
 
 # Prepare data for visualization
 data = []
-for id, entry in sentiment_store.items():
-    if entry['date'] is None:
-        print(f"Invalid date for ID {id}, skipping.")
-        continue
-    data.append({
-        'id': id,
-        'date': entry['date'],
-        'sentiment_score': entry['sentiment_score'],
-    })
+if not show_year:
+    for id, entry in sentiment_store.items():
+        if entry['date'] is None:
+            print(f"Invalid date for ID {id}, skipping.")
+            continue
+        data.append({
+            'id': id,
+            'date': entry['date'],
+            'sentiment_score': entry['sentiment_score'],
+        })
+    
+    df = pd.DataFrame(data)
+    
+    # Assign y_positions within each date group
+    def assign_y_positions(group):
+        group = group.copy()
+        group['y_position'] = range(len(group))
+        return group
+    
+    df = df.groupby('date').apply(assign_y_positions).reset_index(drop=True)
+    
+    # Convert dates to matplotlib date numbers
+    df['date_num'] = mdates.date2num(df['date'])
+    
+    # Set up the matplotlib figure and axes
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    # Use a colormap that goes from red (low sentiment) to green (high sentiment)
+    cmap = cm.get_cmap('RdYlGn')
+    
+    # Plot rectangles for each chunk
+    for idx, row in df.iterrows():
+        x = row['date_num']
+        y = row['y_position']
+        #x = 0
+        sentiment_score = row['sentiment_score']
+        print(x,y,sentiment_score)
+        if sentiment_score is not None:
+            color = cmap(sentiment_score / 100.0)  # Normalize to 0-1
+        else:
+            color = 'gray'  # Use gray color if sentiment_score is None
+        # Plot a rectangle
+        rect = plt.Rectangle((x - 0.4, y), width=0.8, height=0.8, color=color)
+        ax.add_patch(rect)
+    
+    # Configure the x-axis with date labels
+    ax.set_xlim(df['date_num'].min() - 1, df['date_num'].max() + 1)
+    ax.xaxis_date()
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+    fig.autofmt_xdate()
+    
+    # Set y-axis limits and labels
+    ax.set_ylim(-0.5, df['y_position'].max() + 1)
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Chunks per Entry')
+    
+    # Add a colorbar to show the sentiment scale
+    norm = mcolors.Normalize(vmin=0, vmax=100)
+    sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=ax)
+    cbar.set_label('Sentiment Score')
+    
+    # Display the plot
+    plt.title('Sentiment Analysis Over Time')
 
-df = pd.DataFrame(data)
+else:
+    for id, entry in sentiment_store.items():
+        parsed_date = entry['date']
+        if parsed_date is None:
+            print(f"Invalid date for ID {id}, skipping.")
+            continue
+        year = parsed_date.year
+        day_of_year = parsed_date.timetuple().tm_yday  # Day of the year (1-366)
+        data.append({
+                'id': id,
+            'year': year,
+            'day_of_year': day_of_year,
+            'sentiment_score': entry['sentiment_score'],
+        })
+    
+    df = pd.DataFrame(data)
+    
+    # Assign y_positions within each year group
+    def assign_y_positions(group):
+        group = group.copy()
+        group['y_offset'] = range(len(group))
+        return group
+    
+    df = df.groupby(['year', 'day_of_year']).apply(assign_y_positions).reset_index(drop=True)
+    
+    # Calculate the overall y_position by combining the year and y_offset
+    # We'll use the year number as the base, and add a small fraction for the offset
+    df['y_position'] = df['year'] + df['y_offset'] * 0.1  # Adjust the multiplier as needed
+    
+    # Set up the matplotlib figure and axes
+    fig, ax = plt.subplots(figsize=(15, 8))
+    
+    # Use a colormap that goes from red (low sentiment) to green (high sentiment)
+    cmap = cm.get_cmap('RdYlGn')
+    
+    # Plot rectangles for each chunk
+    for idx, row in df.iterrows():
+        x = row['day_of_year']
+        y = row['y_position']
+        sentiment_score = row['sentiment_score']
+    
+        if sentiment_score is not None:
+            color = cmap(sentiment_score / 100.0)  # Normalize to 0-1
+        else:
+            color = 'gray'  # Use gray color if sentiment_score is None
+    
+        # Plot a rectangle
+        rect = plt.Rectangle((x - 0.4, y - 0.05), width=0.8, height=0.1, color=color)
+        ax.add_patch(rect)
+    
+    # Set x-axis limits between 1 and 366 (maximum possible day in a year)
+    ax.set_xlim(1, 366)
+    
+    # Set y-axis labels and limits
+    years = sorted(df['year'].unique())
+    ax.set_yticks(years)
+    ax.set_yticklabels([str(year) for year in years])
+    ax.set_ylim(min(years) - 0.5, max(years) + 0.5)
+    
+    # Set labels
+    ax.set_xlabel('Day of the Year')
+    ax.set_ylabel('Year')
+    
+    # Optionally, format x-axis to show months
+    ax.xaxis.set_major_locator(mdates.MonthLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b'))
+    
+    # Add a colorbar to show the sentiment scale
+    norm = mcolors.Normalize(vmin=0, vmax=100)
+    sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=ax)
+    cbar.set_label('Sentiment Score')
+    
+    # Adjust plot aesthetics
+    plt.title('Sentiment Analysis Over Years')
+    plt.tight_layout()
 
-# Assign y_positions within each date group
-def assign_y_positions(group):
-    group = group.copy()
-    group['y_position'] = range(len(group))
-    return group
-
-df = df.groupby('date').apply(assign_y_positions).reset_index(drop=True)
-
-# Convert dates to matplotlib date numbers
-df['date_num'] = mdates.date2num(df['date'])
-
-# Set up the matplotlib figure and axes
-fig, ax = plt.subplots(figsize=(12, 6))
-
-# Use a colormap that goes from red (low sentiment) to green (high sentiment)
-cmap = cm.get_cmap('RdYlGn')
-
-# Plot rectangles for each chunk
-for idx, row in df.iterrows():
-    x = row['date_num']
-    y = row['y_position']
-    #x = 0
-    sentiment_score = row['sentiment_score']
-    print(x,y,sentiment_score)
-    if sentiment_score is not None:
-        color = cmap(sentiment_score / 100.0)  # Normalize to 0-1
-    else:
-        color = 'gray'  # Use gray color if sentiment_score is None
-    # Plot a rectangle
-    rect = plt.Rectangle((x - 0.4, y), width=0.8, height=0.8, color=color)
-    ax.add_patch(rect)
-
-# Configure the x-axis with date labels
-ax.set_xlim(df['date_num'].min() - 1, df['date_num'].max() + 1)
-ax.xaxis_date()
-ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-fig.autofmt_xdate()
-
-# Set y-axis limits and labels
-ax.set_ylim(-0.5, df['y_position'].max() + 1)
-ax.set_xlabel('Date')
-ax.set_ylabel('Chunks per Entry')
-
-# Add a colorbar to show the sentiment scale
-norm = mcolors.Normalize(vmin=0, vmax=100)
-sm = cm.ScalarMappable(cmap=cmap, norm=norm)
-sm.set_array([])
-cbar = plt.colorbar(sm, ax=ax)
-cbar.set_label('Sentiment Score')
-
-# Display the plot
-plt.title('Sentiment Analysis Over Time')
 plt.show()

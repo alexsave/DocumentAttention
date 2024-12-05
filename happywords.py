@@ -89,9 +89,9 @@ for info in loaded_files:
 word_avg_sentiment = {}
 for word in word_sentiment:
     # if a word is only mentioned once in a really negative entry, it gets ranked low. and vice versa
-    if word not in ignore_words and word_counts[word] > 0:
+    if word not in ignore_words and word_counts[word] > 10:
         # maybe don't normalize. This kinda gets around the word count issue
-        word_avg_sentiment[word] = word_sentiment[word] #/ word_counts[word]
+        word_avg_sentiment[word] = word_sentiment[word] / word_counts[word]
 
 # Now, sort words by average sentiment
 sorted_words_positive = sorted(word_avg_sentiment.items(), key=lambda x: x[1], reverse=True)
