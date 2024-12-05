@@ -58,7 +58,7 @@ else:
 
 # Function to extract sentiment score
 def extract_sentiment(chunk):
-    prompt = f"""Please analyze the following text and provide a rating of sentiment/happiness on a scale of 1 to 100. Just provide the numerical rating.
+    prompt = f"""Please analyze the following text and provide a rating of the happiness of the author on a scale of 1 to 100. Just provide the numerical rating.
 
 Text:
 {chunk}
