@@ -119,7 +119,7 @@ for info in loaded_files:
         chunk_store[id] = date_str + "\n" + chunk
 
         # Skip if already processed
-        if id in sentiment_store:
+        if id in sentiment_store and sentiment_store[id]['sentiment_score'] != None:
             if chunks_processed % 5 == 0:
                 chunks_processed += 1
             continue
