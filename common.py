@@ -150,9 +150,10 @@ def loadfiles():
     if len(sys.argv) > 1:
         journal_dir = sys.argv[1]
     files_and_dirs = sorted(
-        os.listdir(journal_dir),
-        key=lambda x: os.path.getmtime(os.path.join(journal_dir, x))
+        os.listdir(journal_dir)
+        #key=lambda x: os.path.getmtime(os.path.join(journal_dir, x))
     )
+    #files_and_dirs.sorted()
     pattern = re.compile("[12].*")
     files_and_dirs = [ x for x in files_and_dirs if re.match(pattern, x)]
 

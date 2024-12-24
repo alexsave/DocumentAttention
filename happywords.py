@@ -1,18 +1,16 @@
 import collections
-import math
-import json
 import os
 import pickle
 import hashlib
 
-from common import EMBED_MODEL, RetrievalHandler, TimerLogger, chunkenize, chunkenize_smalloverlap, llm, loadfiles, tokenize, chunk_size_bytes
+from common import EMBED_MODEL, TimerLogger, chunkenize_smalloverlap, loadfiles, tokenize, chunk_size_bytes
 
 preprocessing_timer = TimerLogger("Preprocessing")
 
 corpus_size = 0
 
 # Load the existing sentiment data from the previous sentiment file
-SENTIMENT_FILE = "sentiment.pkl"
+SENTIMENT_FILE = "my_sentiment.pkl"
 
 sentiment_store = {}
 word_sentiment = collections.Counter()
