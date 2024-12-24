@@ -1,5 +1,3 @@
-import collections
-import json
 import pickle
 import os
 import hashlib
@@ -10,10 +8,9 @@ import matplotlib.dates as mdates
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 import pandas as pd
-from datetime import datetime
 from dateutil import parser
 
-from common import ChatHistory, RetrievalHandler, TimerLogger, chunkenize, chunkenize_smalloverlap, llm, loadfiles, chunk_size_bytes
+from common import TimerLogger, chunkenize_smalloverlap, llm, loadfiles, chunk_size_bytes
 
 EMBED_MODEL = 'nomic-embed-text'
 
@@ -100,6 +97,9 @@ def parse_date(date_str):
 
 # Process chunks and extract sentiment scores
 chunks_processed = 0
+# sort from largest to smallest file size, using y = [os.stat(x).st_size for x in files]
+loaded_files = sorted(loaded_files, key=lambda x: len(x["content"]), reverse=True)
+
 for info in loaded_files:
     date_str = info["date"]
     print(f"Original date string: {date_str}")
@@ -145,7 +145,6 @@ for info in loaded_files:
 # Save the final progress
 save_progress()
 
-preprocessing_timer.stop_and_log(corpus_size)
 
 # Prepare data for visualization
 data = []
