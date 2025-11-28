@@ -50,7 +50,6 @@ else:
 # Reconstruct chunks from loaded_files and process them
 for info in loaded_files:
     date_str = info["date"]
-    print(f"Original date string: {date_str}")
     content = info["content"]
     corpus_size += len(content)
 
@@ -91,14 +90,45 @@ for word in word_sentiment:
         # maybe don't normalize. This kinda gets around the word count issue
         word_avg_sentiment[word] = word_sentiment[word] #/ word_counts[word]
 
+# print days of week sentiment
+print(f"Monday sentiment: {word_avg_sentiment['monday']}")
+print(f"Tuesday sentiment: {word_avg_sentiment['tuesday']}")
+print(f"Wednesday sentiment: {word_avg_sentiment['wednesday']}")
+print(f"Thursday sentiment: {word_avg_sentiment['thursday']}")
+print(f"Friday sentiment: {word_avg_sentiment['friday']}")
+print(f"Saturday sentiment: {word_avg_sentiment['saturday']}")
+print(f"Sunday sentiment: {word_avg_sentiment['sunday']}")
+
+print(f"Ayush sentiment: {word_avg_sentiment['ayush']}")
+print(f"Ayush sentiment: {word_avg_sentiment['ak']}")
+
+# print months sentiment
+for month in ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']:
+    print(f"{month.capitalize()} sentiment: {word_avg_sentiment[month]}")
+# print seasons sentiment
+for season in ['spring', 'summer', 'fall', 'winter']:
+    print(f"{season.capitalize()} sentiment: {word_avg_sentiment[season]}")
+
+# print holidays sentiment
+for holiday in ['christmas', 'halloween', 'thanksgiving', 'easter', 'nye', 'valentines', 'birthday']:
+    print(f"{holiday.capitalize()} sentiment: {word_avg_sentiment[holiday]}")
+
+# print year sentiment
+for year in ['2014', '2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025']:
+    print(f"{year} sentiment: {word_avg_sentiment[year]}")
+
+# print city sentiment
+for city in ['nyc', 'sf', 'boston', 'nh', 'concord', 'durham', 'dover', 'sunnyvale']:
+    print(f"{city} sentiment: {word_avg_sentiment[city]}")
+
 # Now, sort words by average sentiment
 sorted_words_positive = sorted(word_avg_sentiment.items(), key=lambda x: x[1], reverse=True)
 sorted_words_negative = sorted(word_avg_sentiment.items(), key=lambda x: x[1])
 
 print("Top words correlated with happiness:")
-for word, avg_sent in sorted_words_positive[:40]:
+for word, avg_sent in sorted_words_positive[:100]:
     print(f"{word}: {avg_sent:.3f}")
 
 print("\nTop words correlated with unhappiness:")
-for word, avg_sent in sorted_words_negative[:40]:
+for word, avg_sent in sorted_words_negative[:100]:
     print(f"{word}: {avg_sent:.3f}")
